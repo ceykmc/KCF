@@ -26,8 +26,8 @@ def patch_test():
     object_position = read_label_file(label_path, image.shape[0], image.shape[1])[0]
 
     tracker = CKCFTracker(image, object_position)
-    print('padding: ', tracker.padding)
-    patch = tracker.patch_feature * 255
+    print('padding: ', tracker.padding_ratio)
+    patch = tracker.resized_patch_feature * 255
     patch = np.array(patch.astype(np.uint8))
 
     origin = image[object_position[1]:object_position[3],
