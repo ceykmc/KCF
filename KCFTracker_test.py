@@ -72,7 +72,7 @@ def permute_test():
 
 
 def test_folder():
-    folder = "track_test"
+    folder = r'test_data\sequence'
     image_names = [name for name in os.listdir(folder) if 'jpg' in name]
     label_names = [name.replace('jpg', 'txt') for name in image_names]
 

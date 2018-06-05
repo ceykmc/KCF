@@ -4,6 +4,8 @@ import math
 import numpy as np
 from numpy.fft import fft2, ifft2
 
+from utility import image_resize
+
 
 # utility patch start
 
@@ -89,6 +91,8 @@ class CKCFTracker(object):
         self.object_position = None
         self.patch_position = None  # object position after padding
         self.patch_feature = None
+        self.resized_size = (64, 64)
+        self.scale = None
         self.padding = 2.5  # used in getting train patch
         self.sigma_factor = 0.125  # used in getting training target
         self.regular_lambda = 1e-4  # used in train
@@ -133,6 +137,9 @@ class CKCFTracker(object):
         self.object_position = object_position
         self.patch_position = compute_patch_position(object_position, self.padding)
         patch_roi = extract_patch_roi(image, self.patch_position)
+        self.scale = [(self.patch_position[2] - self.patch_position[0]) / self.resized_size[0],
+                      (self.patch_position[3] - self.patch_position[1]) / self.resized_size[1]]
+        patch_roi = image_resize(patch_roi, dsize=self.resized_size)
         self.patch_feature = get_patch_feature(patch_roi)
 
         self.target = self.get_training_target(
@@ -142,17 +149,18 @@ class CKCFTracker(object):
 
     def detect(self, image):
         query_patch_roi = extract_patch_roi(image, self.patch_position)
+        query_patch_roi = image_resize(query_patch_roi, dsize=self.resized_size)
         query_patch_feature = get_patch_feature(query_patch_roi)
         response = self.compute_response(
             self.alpha, self.patch_feature, query_patch_feature, self.sigma)
         max_value_location = list(np.unravel_index(np.argmax(response), response.shape))  # (y, x) format
-        offset = [(max_value_location[1] - response.shape[1] // 2),
-                  (max_value_location[0] - response.shape[0] // 2)]
+        offset = [(max_value_location[1] - response.shape[1] // 2) * self.scale[0],
+                  (max_value_location[0] - response.shape[0] // 2) * self.scale[1]]
         x1 = min(max(0, offset[0] + self.object_position[0]), image.shape[1] - 1)
         y1 = min(max(0, offset[1] + self.object_position[1]), image.shape[0] - 1)
         x2 = min(max(0, offset[0] + self.object_position[2]), image.shape[1] - 1)
         y2 = min(max(0, offset[1] + self.object_position[3]), image.shape[0] - 1)
-        detect_position = [x1, y1, x2, y2]
+        detect_position = [int(e) for e in [x1, y1, x2, y2]]
         # update patch position
         self.init(image, detect_position)
         return detect_position
